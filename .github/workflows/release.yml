@@ -9,7 +9,6 @@ on:
 # Add explicit permissions
 permissions:
   contents: write
-  releases: write
 
 jobs:
   build-and-release:
