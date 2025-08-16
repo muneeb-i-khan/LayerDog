@@ -1,0 +1,78 @@
+name: Build and Release Layer Dog Plugin
+
+on:
+  push:
+    tags: 
+      - 'v*'  # Trigger on version tags (v1.0.0, v1.0.1, etc.)
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Setup Java 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      
+    - name: Make gradlew executable
+      run: chmod +x ./gradlew
+      
+    - name: Build Plugin
+      run: ./gradlew buildPlugin --no-daemon
+      
+    - name: Get Plugin Info
+      id: plugin_info
+      run: |
+        echo "version=$(grep '^version = ' build.gradle.kts | sed 's/version = "\(.*\)"/\1/')" >> $GITHUB_OUTPUT
+        echo "plugin_name=layer-dog" >> $GITHUB_OUTPUT
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: "Layer Dog v${{ steps.plugin_info.outputs.version }}"
+        files: |
+          build/distributions/*.zip
+        body: |
+          ## 🐕 Layer Dog Plugin v${{ steps.plugin_info.outputs.version }}
+          
+          ### 🚀 Installation
+          1. Download `layer-dog-${{ steps.plugin_info.outputs.version }}.zip`
+          2. In IntelliJ IDEA: `File → Settings → Plugins`  
+          3. Click ⚙️ → `Install Plugin from Disk...`
+          4. Select the downloaded ZIP file
+          5. Restart IntelliJ IDEA
+          
+          ### ✨ Features
+          - Real-time architectural layer violation detection
+          - Supports Controller, DTO, API, FLOW, and DAO layers
+          - Warning-level highlighting (yellow squiggles)
+          - Quick fix suggestions
+          - Maven project compatibility
+          
+          ### 🧪 Test It Out
+          ```java
+          @RestController
+          public class TestController {
+              private UserService service; // ⚠️ Should show layer violation warning
+          }
+          ```
+          
+          ### 📋 Layer Rules
+          - **Controller** → DTO only
+          - **DTO** → API only  
+          - **API** → DAO/FLOW only
+          - **FLOW** → Multiple APIs
+          - **DAO** → Database only
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -47,19 +47,24 @@ The plugin enforces the following layering rules:
 
 ## Installation
 
-### Building the Plugin
+### 📥 Download from GitHub Releases (Recommended)
+
+1. **Download the latest plugin**:
+   - Go to [Releases](https://github.com/muneeb-i-khan/LayerDog/releases)
+   - Download `layer-dog-x.x.x.zip` from the latest release
+
+2. **Install in IntelliJ IDEA**:
+   - Go to `File → Settings → Plugins`
+   - Click the ⚙️ gear icon and select `Install Plugin from Disk...`
+   - Select the downloaded ZIP file
+   - Restart IntelliJ IDEA
+
+### 🛠️ Building from Source (Advanced)
 
 1. Clone this repository
-2. Open in IntelliJ IDEA
+2. Open in IntelliJ IDEA  
 3. Run the Gradle task: `./gradlew buildPlugin`
 4. The plugin will be built in `build/distributions/`
-
-### Installing in IntelliJ IDEA
-
-1. Go to `File → Settings → Plugins`
-2. Click the gear icon and select `Install Plugin from Disk...`
-3. Select the built plugin ZIP file
-4. Restart IntelliJ IDEA
 
 ## Usage
 
