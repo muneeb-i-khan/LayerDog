@@ -1,0 +1,88 @@
+<idea-plugin>
+    <id>com.layerdog.layer-enforcer</id>
+    <name>Layer Dog - Architecture Enforcer</name>
+    <vendor email="support@layerdog.com" url="https://github.com/layerdog/layer-enforcer">Layer Dog</vendor>
+
+    <description><![CDATA[
+    A plugin that enforces architectural layering rules in Java projects. 
+    
+    Supported layers:
+    - Controller: Should have no business logic and only call DTO layer
+    - DTO: Should call only API layer, do validations and conversions
+    - API: Contains business logic, calls DAO layer, should not call other APIs directly
+    - FLOW: Used when API needs to call other APIs
+    - DAO: Talks to database only
+    
+    The plugin provides real-time inspections to detect layering violations and suggests fixes.
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <h3>1.0.0</h3>
+    <ul>
+        <li>Initial release</li>
+        <li>Added inspections for Controller, DTO, API, FLOW, and DAO layers</li>
+        <li>Real-time violation detection</li>
+        <li>Quick fixes for common violations</li>
+    </ul>
+    ]]></change-notes>
+
+    <!-- please see https://plugins.jetbrains.com/docs/intellij/build-number-ranges.html for description -->
+    <idea-version since-build="232" until-build="241.*"/>
+
+    <!-- please see https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html
+         on how to target different products -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+    <depends>org.jetbrains.idea.maven</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Notification group for plugin messages -->
+        <notificationGroup id="Layer Dog" displayType="BALLOON" key="notification.group.layerdog"/>
+        
+        <!-- Inspections for each layer -->
+        <localInspection
+                language="JAVA"
+                displayName="Controller Layer Violation"
+                groupName="Layer Dog Architecture"
+                shortName="ControllerLayerViolation"
+                level="WARNING"
+                implementationClass="com.layerdog.inspections.ControllerLayerInspection"
+                enabledByDefault="true"/>
+
+        <localInspection
+                language="JAVA"
+                displayName="DTO Layer Violation"
+                groupName="Layer Dog Architecture"
+                shortName="DTOLayerViolation"
+                level="WARNING"
+                implementationClass="com.layerdog.inspections.DTOLayerInspection"
+                enabledByDefault="true"/>
+
+        <localInspection
+                language="JAVA"
+                displayName="API Layer Violation"
+                groupName="Layer Dog Architecture"
+                shortName="APILayerViolation"
+                level="WARNING"
+                implementationClass="com.layerdog.inspections.APILayerInspection"
+                enabledByDefault="true"/>
+
+        <localInspection
+                language="JAVA"
+                displayName="FLOW Layer Violation"
+                groupName="Layer Dog Architecture"
+                shortName="FlowLayerViolation"
+                level="WARNING"
+                implementationClass="com.layerdog.inspections.FlowLayerInspection"
+                enabledByDefault="true"/>
+
+        <localInspection
+                language="JAVA"
+                displayName="DAO Layer Violation"
+                groupName="Layer Dog Architecture"
+                shortName="DAOLayerViolation"
+                level="WARNING"
+                implementationClass="com.layerdog.inspections.DAOLayerInspection"
+                enabledByDefault="true"/>
+    </extensions>
+</idea-plugin>
