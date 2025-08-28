@@ -84,5 +84,27 @@
                 level="WARNING"
                 implementationClass="com.layerdog.inspections.DAOLayerInspection"
                 enabledByDefault="true"/>
+                
+        <!-- Project startup activity for sound listener -->
+        <projectActivity implementation="com.layerdog.sound.InspectionSoundListenerStartup"/>
     </extensions>
+    
+    <actions>
+        <!-- LayerDog configuration actions -->
+        <group id="LayerDogGroup" text="LayerDog" description="LayerDog Architecture Enforcer" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            
+            <action id="InitializeLayerDogRules"
+                    class="com.layerdog.actions.InitializeRulesAction"
+                    text="Initialize Rule Configuration"
+                    description="Initialize external rule configuration file for LayerDog">
+            </action>
+            
+            <action id="ConfigureLayerDogSounds"
+                    class="com.layerdog.actions.ConfigureSoundsAction"
+                    text="Configure Sounds"
+                    description="Configure sound effects for LayerDog violations">
+            </action>
+        </group>
+    </actions>
 </idea-plugin>
