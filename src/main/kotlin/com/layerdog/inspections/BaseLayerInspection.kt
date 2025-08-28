@@ -3,11 +3,14 @@ package com.layerdog.inspections
 import com.intellij.codeInspection.*
 import com.intellij.psi.*
 import com.layerdog.utils.LayerDetector
+import com.layerdog.rules.RuleEngine
 
 /**
  * Base class for all layer inspection implementations
  */
 abstract class BaseLayerInspection : AbstractBaseJavaLocalInspectionTool() {
+    
+    protected val ruleEngine = RuleEngine.getInstance()
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         return object : JavaElementVisitor() {
@@ -93,16 +96,9 @@ abstract class BaseLayerInspection : AbstractBaseJavaLocalInspectionTool() {
     }
 
     /**
-     * Helper method to check if method call is to a standard Java library
+     * Helper method to check if method call is to a standard Java library using rule engine
      */
     protected fun isJavaLibraryCall(targetClass: PsiClass?): Boolean {
-        if (targetClass == null) return false
-        val qualifiedName = targetClass.qualifiedName ?: return false
-        
-        return qualifiedName.startsWith("java.") ||
-                qualifiedName.startsWith("javax.") ||
-                qualifiedName.startsWith("com.sun.") ||
-                qualifiedName.startsWith("org.w3c.") ||
-                qualifiedName.startsWith("org.xml.")
+        return ruleEngine.isJavaLibraryCall(targetClass)
     }
 }

@@ -4,12 +4,15 @@ import com.intellij.codeInspection.*
 import com.intellij.psi.*
 import com.layerdog.utils.LayerDetector
 import com.layerdog.utils.LayerDetector.Layer
+import com.layerdog.rules.RuleEngine
 
 /**
  * Inspection for Controller layer violations.
  * Controllers should have no business logic and should only call DTO layer.
  */
 class ControllerLayerInspection : BaseLayerInspection() {
+    
+    private val ruleEngine = RuleEngine.getInstance()
 
     override fun checkClass(psiClass: PsiClass, holder: ProblemsHolder) {
         val currentLayer = LayerDetector.detectLayer(psiClass)
@@ -18,9 +21,10 @@ class ControllerLayerInspection : BaseLayerInspection() {
 
         // Check if controller has business logic
         if (LayerDetector.hasBusinessLogic(psiClass)) {
+            val message = ruleEngine.getBusinessLogicMessage(currentLayer, getClassName(psiClass))
             createProblem(
                 psiClass.nameIdentifier ?: psiClass,
-                "Controller '${getClassName(psiClass)}' contains business logic. Controllers should delegate to DTOs.",
+                message,
                 holder,
                 ExtractBusinessLogicQuickFix()
             )
@@ -42,12 +46,12 @@ class ControllerLayerInspection : BaseLayerInspection() {
         val targetLayer = LayerDetector.detectLayer(targetClass)
 
         if (!LayerDetector.isValidLayerCall(currentLayer, targetLayer)) {
-            val message = when (targetLayer) {
-                Layer.API -> "Controller '${getClassName(containingClass)}' is directly calling API layer '${getClassName(targetClass)}'. Use DTO layer instead."
-                Layer.DAO -> "Controller '${getClassName(containingClass)}' is directly calling DAO layer '${getClassName(targetClass)}'. Use DTO layer instead."
-                Layer.FLOW -> "Controller '${getClassName(containingClass)}' is calling FLOW layer '${getClassName(targetClass)}'. Use DTO layer instead."
-                else -> "Controller '${getClassName(containingClass)}' is calling '${getClassName(targetClass)}' which is not in the DTO layer. Controllers should only call DTOs."
-            }
+            val message = ruleEngine.getViolationMessage(
+                currentLayer, 
+                targetLayer, 
+                getClassName(containingClass), 
+                getClassName(targetClass)
+            )
 
             createProblem(
                 expression.methodExpression,
@@ -62,13 +66,18 @@ class ControllerLayerInspection : BaseLayerInspection() {
      * Quick fix to extract business logic to API layer
      */
     private class ExtractBusinessLogicQuickFix : LocalQuickFix {
-        override fun getName(): String = "Extract business logic to API layer"
+        private val ruleEngine = RuleEngine.getInstance()
+        
+        override fun getName(): String {
+            return ruleEngine.getQuickFix("extractBusinessLogic")?.name 
+                ?: "Extract business logic to API layer"
+        }
+        
         override fun getFamilyName(): String = "Layer Dog"
 
         override fun applyFix(project: com.intellij.openapi.project.Project, descriptor: ProblemDescriptor) {
-            // Implementation would involve refactoring the code
-            // For now, we'll just show a popup with guidance
-            val message = """
+            val quickFix = ruleEngine.getQuickFix("extractBusinessLogic")
+            val message = quickFix?.description ?: """
                 To fix this violation:
                 1. Create a new service/API class
                 2. Move the business logic methods to the API class
@@ -87,11 +96,17 @@ class ControllerLayerInspection : BaseLayerInspection() {
      * Quick fix to move call to DTO layer
      */
     private class MoveToDTOQuickFix(private val targetClassName: String) : LocalQuickFix {
-        override fun getName(): String = "Move call to DTO layer"
+        private val ruleEngine = RuleEngine.getInstance()
+        
+        override fun getName(): String {
+            return ruleEngine.getQuickFix("moveToDTO")?.name ?: "Move call to DTO layer"
+        }
+        
         override fun getFamilyName(): String = "Layer Dog"
 
         override fun applyFix(project: com.intellij.openapi.project.Project, descriptor: ProblemDescriptor) {
-            val message = """
+            val quickFix = ruleEngine.getQuickFix("moveToDTO")
+            val message = quickFix?.description?.replace("{targetClass}", targetClassName) ?: """
                 To fix this violation:
                 1. Create a DTO class if it doesn't exist
                 2. Move the call to '$targetClassName' from controller to DTO

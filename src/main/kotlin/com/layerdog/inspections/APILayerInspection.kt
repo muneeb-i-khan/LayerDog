@@ -27,9 +27,16 @@ class APILayerInspection : BaseLayerInspection() {
 
         // Check for direct API-to-API calls
         if (targetLayer == Layer.API && !isSelfCall(expression)) {
+            val message = ruleEngine.getViolationMessage(
+                currentLayer, 
+                targetLayer, 
+                getClassName(containingClass), 
+                getClassName(targetClass)
+            ).ifEmpty { "API '${getClassName(containingClass)}' is directly calling another API '${getClassName(targetClass)}'. Use FLOW layer for API-to-API communication." }
+            
             createProblem(
                 expression.methodExpression,
-                "API '${getClassName(containingClass)}' is directly calling another API '${getClassName(targetClass)}'. Use FLOW layer for API-to-API communication.",
+                message,
                 holder,
                 UseFlowLayerQuickFix(getClassName(targetClass))
             )
@@ -38,11 +45,12 @@ class APILayerInspection : BaseLayerInspection() {
 
         // Check for invalid layer calls
         if (!LayerDetector.isValidLayerCall(currentLayer, targetLayer)) {
-            val message = when (targetLayer) {
-                Layer.CONTROLLER -> "API '${getClassName(containingClass)}' should not call Controller '${getClassName(targetClass)}'. Controllers should call APIs, not the reverse."
-                Layer.DTO -> "API '${getClassName(containingClass)}' should not directly call DTO '${getClassName(targetClass)}'. DTOs should call APIs, not the reverse."
-                else -> "API '${getClassName(containingClass)}' is calling '${getClassName(targetClass)}' which violates layer architecture. APIs should call DAO or FLOW layers."
-            }
+            val message = ruleEngine.getViolationMessage(
+                currentLayer, 
+                targetLayer, 
+                getClassName(containingClass), 
+                getClassName(targetClass)
+            )
 
             createProblem(
                 expression.methodExpression,
@@ -74,41 +82,32 @@ class APILayerInspection : BaseLayerInspection() {
     }
 
     /**
-     * Identifies method patterns that suggest direct data access
+     * Identifies method patterns that suggest direct data access using rule engine
      */
     private fun isDirectDataAccessPattern(methodName: String): Boolean {
-        val dataAccessPatterns = listOf(
-            "select", "insert", "update", "delete", "query", "execute",
-            "findBy", "saveAs", "removeBy", "countBy"
-        )
-        
-        return dataAccessPatterns.any { pattern ->
-            methodName.contains(pattern, ignoreCase = true) && 
-            (methodName.contains("sql", ignoreCase = true) || 
-             methodName.contains("db", ignoreCase = true) ||
-             methodName.contains("database", ignoreCase = true))
-        }
+        return ruleEngine.hasDirectDataAccessPattern(methodName, Layer.API)
     }
 
     /**
      * Quick fix to use FLOW layer for API-to-API communication
      */
     private class UseFlowLayerQuickFix(private val targetAPIName: String) : LocalQuickFix {
-        override fun getName(): String = "Use FLOW layer for API communication"
+        private val ruleEngine = RuleEngine.getInstance()
+        
+        override fun getName(): String {
+            return ruleEngine.getQuickFix("useFlowLayer")?.name ?: "Use FLOW layer for API communication"
+        }
+        
         override fun getFamilyName(): String = "Layer Dog"
 
         override fun applyFix(project: com.intellij.openapi.project.Project, descriptor: ProblemDescriptor) {
-            val message = """
+            val quickFix = ruleEngine.getQuickFix("useFlowLayer")
+            val message = quickFix?.description?.replace("{targetClass}", targetAPIName) ?: """
                 To fix this API-to-API communication violation:
                 1. Create or identify a FLOW class for this operation
                 2. Move the call to '$targetAPIName' from this API to the FLOW layer
                 3. Have this API call the FLOW method instead
                 4. Let the FLOW orchestrate the API calls
-                
-                Example:
-                // Before: api1.method() calls api2.method()
-                // After: api1.method() calls flow.orchestrateOperation() 
-                //        flow.orchestrateOperation() calls api2.method()
             """.trimIndent()
             
             com.intellij.notification.NotificationGroupManager.getInstance()
@@ -153,11 +152,17 @@ class APILayerInspection : BaseLayerInspection() {
      * Quick fix to create DAO method
      */
     private class CreateDAOMethodQuickFix(private val methodName: String) : LocalQuickFix {
-        override fun getName(): String = "Create DAO method for data access"
+        private val ruleEngine = RuleEngine.getInstance()
+        
+        override fun getName(): String {
+            return ruleEngine.getQuickFix("createDAO")?.name ?: "Create DAO method for data access"
+        }
+        
         override fun getFamilyName(): String = "Layer Dog"
 
         override fun applyFix(project: com.intellij.openapi.project.Project, descriptor: ProblemDescriptor) {
-            val message = """
+            val quickFix = ruleEngine.getQuickFix("createDAO")
+            val message = quickFix?.description?.replace("{methodName}", methodName) ?: """
                 To fix this direct data access violation:
                 1. Create a DAO class if it doesn't exist
                 2. Move the data access logic for '$methodName' to the DAO

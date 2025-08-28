@@ -1,0 +1,193 @@
+{
+  "version": "1.0",
+  "description": "LayerDog Architecture Rules Configuration",
+  
+  "layers": {
+    "CONTROLLER": {
+      "name": "Controller",
+      "description": "Should have no business logic and only call DTO layer",
+      "detection": {
+        "classNamePatterns": {
+          "suffixes": ["Controller", "Resource", "Endpoint"],
+          "prefixes": [],
+          "contains": []
+        },
+        "packagePatterns": {
+          "contains": ["controller", "web", "rest"],
+          "exact": []
+        },
+        "annotations": [
+          "Controller", "RestController", "Resource", 
+          "org.springframework.stereotype.Controller",
+          "org.springframework.web.bind.annotation.RestController"
+        ]
+      },
+      "allowedCalls": ["DTO"],
+      "rules": {
+        "businessLogicProhibited": true,
+        "businessLogicMessage": "Controller '{className}' contains business logic. Controllers should delegate to DTOs."
+      }
+    },
+    
+    "DTO": {
+      "name": "DTO",
+      "description": "Should call only API layer and do validations and conversions",
+      "detection": {
+        "classNamePatterns": {
+          "suffixes": ["DTO", "Dto", "Request", "Response", "Model"],
+          "prefixes": [],
+          "contains": []
+        },
+        "packagePatterns": {
+          "contains": ["dto", "model"],
+          "exact": []
+        },
+        "annotations": []
+      },
+      "allowedCalls": ["API"],
+      "rules": {
+        "businessLogicProhibited": true,
+        "businessLogicMessage": "DTO '{className}' contains business logic. DTOs should only handle validation and conversion.",
+        "businessLogicPatterns": ["calculate", "compute", "process", "execute", "perform", "apply", "analyze", "evaluate", "determine", "decide", "resolve"]
+      }
+    },
+    
+    "API": {
+      "name": "API",
+      "description": "Contains business logic, calls DAO layer, should not call other APIs directly",
+      "detection": {
+        "classNamePatterns": {
+          "suffixes": ["Service", "ServiceImpl", "Manager", "Handler", "Processor"],
+          "prefixes": [],
+          "contains": []
+        },
+        "packagePatterns": {
+          "contains": ["service", "business", "logic"],
+          "exact": []
+        },
+        "annotations": [
+          "Service", "Component",
+          "org.springframework.stereotype.Service",
+          "org.springframework.stereotype.Component"
+        ]
+      },
+      "allowedCalls": ["DAO", "FLOW"],
+      "rules": {
+        "directApiCallsProhibited": true,
+        "directApiCallMessage": "API '{className}' is directly calling another API '{targetClassName}'. Use FLOW layer for API-to-API communication.",
+        "directDataAccessPatterns": ["select", "insert", "update", "delete", "query", "execute", "findBy", "saveAs", "removeBy", "countBy"],
+        "directDataAccessIndicators": ["sql", "db", "database"]
+      }
+    },
+    
+    "FLOW": {
+      "name": "FLOW",
+      "description": "Used when API needs to call other APIs",
+      "detection": {
+        "classNamePatterns": {
+          "suffixes": ["Flow", "Workflow", "Orchestrator", "Coordinator"],
+          "prefixes": [],
+          "contains": []
+        },
+        "packagePatterns": {
+          "contains": ["flow", "workflow", "orchestrat"],
+          "exact": []
+        },
+        "annotations": []
+      },
+      "allowedCalls": ["API"],
+      "rules": {}
+    },
+    
+    "DAO": {
+      "name": "DAO",
+      "description": "Talks to database only",
+      "detection": {
+        "classNamePatterns": {
+          "suffixes": ["DAO", "Dao", "Repository", "Mapper", "Entity"],
+          "prefixes": [],
+          "contains": []
+        },
+        "packagePatterns": {
+          "contains": ["dao", "repository", "data", "persistence"],
+          "exact": []
+        },
+        "annotations": [
+          "Repository", "Entity", "Table",
+          "org.springframework.stereotype.Repository",
+          "javax.persistence.Entity",
+          "javax.persistence.Table"
+        ]
+      },
+      "allowedCalls": ["DAO", "UNKNOWN"],
+      "rules": {}
+    }
+  },
+  
+  "globalRules": {
+    "businessLogicDetection": {
+      "complexLogicThreshold": {
+        "ifStatements": 2,
+        "switchStatements": 2,
+        "loopStatements": 2
+      },
+      "calculationLogicThreshold": {
+        "assignmentExpressions": 3,
+        "binaryExpressions": 5
+      }
+    },
+    "javaLibraryPackages": [
+      "java.", "javax.", "com.sun.", "org.w3c.", "org.xml."
+    ],
+    "databaseRelatedPatterns": {
+      "classNames": ["Connection", "DataSource", "Driver", "Statement", "ResultSet"],
+      "packages": ["java.sql", "javax.sql", "hibernate", "mybatis", "jpa", "jdbc"]
+    },
+    "soundConfiguration": {
+      "enabled": false,
+      "soundFile": "",
+      "volume": 0.7,
+      "playOnHover": true,
+      "playOnInspection": false,
+      "debounceMs": 1000
+    }
+  },
+  
+  "violationMessages": {
+    "invalidLayerCall": {
+      "CONTROLLER_TO_API": "Controller '{fromClass}' is directly calling API layer '{toClass}'. Use DTO layer instead.",
+      "CONTROLLER_TO_DAO": "Controller '{fromClass}' is directly calling DAO layer '{toClass}'. Use DTO layer instead.",
+      "CONTROLLER_TO_FLOW": "Controller '{fromClass}' is calling FLOW layer '{toClass}'. Use DTO layer instead.",
+      "DTO_TO_CONTROLLER": "DTO '{fromClass}' is calling Controller '{toClass}'. DTOs should not call Controllers.",
+      "DTO_TO_DAO": "DTO '{fromClass}' is directly calling DAO layer '{toClass}'. Use API layer instead.",
+      "DTO_TO_FLOW": "DTO '{fromClass}' is calling FLOW layer '{toClass}'. Use API layer instead.",
+      "DTO_TO_DTO": "DTO '{fromClass}' is calling another DTO '{toClass}'. Consider consolidating or using API layer.",
+      "API_TO_CONTROLLER": "API '{fromClass}' should not call Controller '{toClass}'. Controllers should call APIs, not the reverse.",
+      "API_TO_DTO": "API '{fromClass}' should not directly call DTO '{toClass}'. DTOs should call APIs, not the reverse.",
+      "GENERIC": "{fromLayer} '{fromClass}' is calling '{toClass}' which violates layer architecture. {fromLayer}s should only call {allowedLayers}."
+    }
+  },
+  
+  "quickFixes": {
+    "extractBusinessLogic": {
+      "name": "Extract business logic to API layer",
+      "description": "To fix this violation:\n1. Create a new service/API class\n2. Move the business logic methods to the API class\n3. Inject the API class into the controller\n4. Update the controller to call the API methods"
+    },
+    "moveToDTO": {
+      "name": "Move call to DTO layer", 
+      "description": "To fix this violation:\n1. Create a DTO class if it doesn't exist\n2. Move the call to '{targetClass}' from controller to DTO\n3. Have the controller call the DTO method instead\n4. Ensure proper data transformation in DTO"
+    },
+    "useFlowLayer": {
+      "name": "Use FLOW layer for API communication",
+      "description": "To fix this API-to-API communication violation:\n1. Create or identify a FLOW class for this operation\n2. Move the call to '{targetClass}' from this API to the FLOW layer\n3. Have this API call the FLOW method instead\n4. Let the FLOW orchestrate the API calls"
+    },
+    "moveToAPI": {
+      "name": "Use API layer for this operation",
+      "description": "To fix this violation:\n1. Create an API/Service method that handles this operation\n2. Move the call to '{targetClass}' from DTO to the API layer\n3. Have the DTO call the API method instead\n4. Ensure proper data flow: DTO → API → DAO/FLOW"
+    },
+    "createDAO": {
+      "name": "Create DAO method for data access",
+      "description": "To fix this direct data access violation:\n1. Create a DAO class if it doesn't exist\n2. Move the data access logic for '{methodName}' to the DAO\n3. Have the API call the DAO method instead\n4. Keep business logic in API, data access in DAO"
+    }
+  }
+}
